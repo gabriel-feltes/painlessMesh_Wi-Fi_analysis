@@ -4,7 +4,7 @@ from datetime import datetime
 import time
 
 # Define the Blynk credentials and API URL
-blynk_auth_token = 'YOUR_TOKEN'
+blynk_auth_token = 'a8jJCfTWHAWtlLRfFreal2wW-P_YBbv0'
 base_url = 'https://blynk.cloud/external/api'
 
 # Define the virtual pins corresponding to the data

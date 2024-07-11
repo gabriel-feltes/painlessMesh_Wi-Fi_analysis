@@ -1,6 +1,6 @@
 #define BLYNK_TEMPLATE_ID "TMPL2CmlqFtSq"
 #define BLYNK_TEMPLATE_NAME "MESH Gateway"
-#define BLYNK_AUTH_TOKEN "YOUR_TOKEN"
+#define BLYNK_AUTH_TOKEN "YOUR TOKEN"
 
 #define INTERNET "SSID"     // DYNAMIC INTERNET CONECTIVITY WI-FI SSID
 #define PASSWORD "PASSWORD" // DYNAMIC INTERNET CONECTIVITY WI-FI PASSWORD
@@ -31,6 +31,7 @@ unsigned long lastSyncTime = 0;
 const unsigned long syncInterval = 20000;
 
 unsigned long lastSendTime = 0; // Variable for timer
+unsigned long storedTimeSinceLastSend = 0; // Global variable to store the captured time since last send
 
 String lastRelPressure;
 String lastAbsPressure;
@@ -250,6 +251,9 @@ int splitValues(String data, String* values, char separator, int maxValues) {
 
 void newConnectionCallback(uint32_t nodeId) {
   Serial.printf("New connection, nodeId = %u\n", nodeId);
+  // Start the timer here
+  lastSendTime = millis();
+  Serial.printf("Timer started at: %lu ms\n", lastSendTime);
 }
 
 void changedConnectionCallback() {
@@ -290,6 +294,10 @@ void loop() {
   // Calculate time since last send
   unsigned long timeSinceLastSend = currentMillis - lastSendTime;
 
+  // Print time since last send for debugging and store the value
+  Serial.printf("Time since last send: %lu ms\n", timeSinceLastSend);
+  storedTimeSinceLastSend = timeSinceLastSend;
+
   // Sending data to Blynk if flag is set
   if (sendToBlynkFlag) {
     if (connectedToMesh) {
@@ -312,17 +320,7 @@ void loop() {
     }
   }
 
-  // Print time since last send for debugging
-  //Serial.println("Time since last send: " + String(timeSinceLastSend) + " ms");
-
   delay(10);
-}
-
-void syncTask() {
-  unsigned long currentMillis = millis();
-  if (currentMillis - lastSyncTime >= syncInterval) {
-    lastSyncTime = currentMillis;
-  }
 }
 
 bool connectToWiFi() {
@@ -338,14 +336,16 @@ bool connectToWiFi() {
 }
 
 void connectToBlynk() {
+  // Print the stored time since last send before attempting to connect to Wi-Fi
+  Serial.printf("Time since last send before Wi-Fi connect: %lu ms\n", storedTimeSinceLastSend);
+
   if (connectToWiFi()) {
     Blynk.connect();
     if (Blynk.connected()) {
       connectedToMesh = false;
       lastBlynkConnectTime = millis();
 
-      unsigned long currentMillis = millis();
-      unsigned long timeSinceLastSend = currentMillis - lastSendTime;
+      unsigned long currentMillis = millis(); // Update the current time
 
       if (lastRelPressure.length() > 0 && lastAbsPressure.length() > 0 && lastTemperature.length() > 0 && lastHumidity.length() > 0 && lastLuminosity.length() > 0) {
         Blynk.virtualWrite(V3, lastRelPressure.toDouble());
@@ -353,7 +353,7 @@ void connectToBlynk() {
         Blynk.virtualWrite(V0, lastTemperature.toDouble());
         Blynk.virtualWrite(V1, lastHumidity.toDouble());
         Blynk.virtualWrite(V4, lastLuminosity.toDouble());
-        Blynk.virtualWrite(V5, timeSinceLastSend);
+        Blynk.virtualWrite(V5, storedTimeSinceLastSend); // Use the stored timeSinceLastSend variable
 
         if (nodeMeshNetworkRSSI != 0 && nodeMeshNetworkChannel != 0 &&
             nodeInternetRSSI != 0 && nodeInternetChannel != 0 &&
@@ -373,7 +373,8 @@ void connectToBlynk() {
 
         Serial.println("\nData sent to Blynk");
         Serial.println("Node ID: " + lastNodeID + "\n");
-        Serial.println("Time since last send: " + String(timeSinceLastSend) + " ms\n");
+        Serial.printf("Timer ended at: %lu ms\n", currentMillis);
+        Serial.printf("Time since last send: %lu ms\n", storedTimeSinceLastSend);
       }
 
       // Update last send time
